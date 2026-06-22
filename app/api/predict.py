@@ -24,21 +24,26 @@ class PredictWebResponse(BaseModel):
     crop_image: Optional[str] = None
     message: Optional[str] = None
 
+
 def get_image_from_url(url: str) -> np.ndarray:
-    """
-    Hàm helper dùng chung để tải và giải mã ảnh trực tiếp từ URL vào bộ nhớ RAM.
-    Tránh trùng lặp mã nguồn trong các API endpoints.
-    """
-    response = requests.get(url, timeout=15)
+    headers = {
+        # Giả lập trình duyệt để tránh bị chặn và yêu cầu định dạng tương thích cao
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "image/jpeg,image/png,image/*;q=0.8"
+    }
+
+    # Thiết lập timeout hợp lý (ví dụ: 10 giây) để tránh treo API khi Cloudinary gặp sự cố
+    response = requests.get(url, headers=headers, timeout=10)
+
     if response.status_code != 200:
-        raise Exception(f"Không thể tải ảnh từ URL. HTTP Code: {response.status_code}")
-    
+        raise Exception(f"Không thể tải ảnh từ URL Cloudinary. HTTP Code: {response.status_code}")
+
     image_bytes = np.frombuffer(response.content, dtype=np.uint8)
     image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
-    
+
     if image is None:
-        raise Exception("Định dạng ảnh tải xuống không hợp lệ hoặc bị lỗi.")
-    
+        raise Exception("Không thể giải mã định dạng ảnh. Hãy chắc chắn URL trả về định dạng JPG/PNG.")
+
     return image
 
 
