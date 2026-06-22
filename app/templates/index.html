@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI License Plate Recognition Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e1b4b, #0f172a);
+            padding: 2rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        main {
+            flex-grow: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #e2e8f0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 0.75rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(15, 23, 42, 0.6);
+            color: var(--text-primary);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-color);
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            background-color: rgba(15, 23, 42, 0.4);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .file-upload-wrapper:hover {
+            background-color: rgba(15, 23, 42, 0.6);
+            border-color: var(--accent-color);
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-wrapper svg {
+            width: 40px;
+            height: 40px;
+            fill: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 0.85rem 1.5rem;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 1.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .divider:not(:empty)::before {
+            margin-right: .5em;
+        }
+
+        .divider:not(:empty)::after {
+            margin-left: .5em;
+        }
+
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .result-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .result-placeholder svg {
+            width: 80px;
+            height: 80px;
+            stroke: rgba(255, 255, 255, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .result-plate-box {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            width: 100%;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+        }
+
+        .result-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 0.05em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .result-images {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            width: 100%;
+        }
+
+        .img-box {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: #020617;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .img-box span {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .img-box img {
+            width: 100%;
+            height: auto;
+            max-height: 250px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .img-box.crop-box img {
+            max-height: 100px;
+            object-fit: contain;
+            padding: 0.5rem;
+        }
+
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>AI License Plate Recognition</h1>
+        <p>Giải pháp phát hiện và nhận diện biển số xe Việt Nam ứng dụng Deep Learning</p>
+    </header>
+
+    <main>
+        <div class="card">
+            <div class="card-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="stroke: var(--accent-color)">
+                    <path d="M21 12V7H5a2 2 0 0 1-2-2V5"/>
+                    <path d="M3 10V19a2 2 0 0 0 2 2h16"/>
+                    <circle cx="7" cy="15" r="1"/>
+                    <circle cx="17" cy="15" r="1"/>
+                </svg>
+                Tải Ảnh Lên Kiểm Thử
+            </div>
+            
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="image-url">Nhập URL hình ảnh trực tuyến:</label>
+                    <input type="text" id="image-url" name="image_url" placeholder="https://example.com/car.jpg">
+                </div>
+                
+                <div class="divider">HOẶC UPLOAD FILE ẢNH</div>
+
+                <div class="form-group">
+                    <div class="file-upload-wrapper">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                        <span id="file-name-display" style="color: var(--text-secondary)">Kéo thả hoặc Click để chọn ảnh</span>
+                        <input type="file" id="image-file" name="image_file" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+                    <label>Loại phương tiện:</label>
+                    <div style="display: flex; gap: 2rem; margin-top: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary)">
+                            <input type="radio" name="vehicle_type" value="car" checked style="accent-color: var(--accent-color); transform: scale(1.1);"> Ô tô
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary)">
+                            <input type="radio" name="vehicle_type" value="motorbike" style="accent-color: var(--accent-color); transform: scale(1.1);"> Xe máy
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="submit-btn" style="margin-top: 0.5rem;">Bắt Đầu Nhận Diện</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="stroke: var(--success)">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Kết Quả Phân Tích
+            </div>
+
+            <div class="loader" id="loader"></div>
+
+            <div class="result-container" id="result-wrapper">
+                <div class="result-placeholder" id="placeholder">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <p>Kết quả phân tích biển số xe sẽ hiển thị ở đây sau khi bạn tải ảnh lên</p>
+                </div>
+
+                <div class="result-plate-box" id="plate-box" style="display: none;">
+                    <div class="result-label">Biển số nhận diện được</div>
+                    <div class="result-value" id="plate-value">-</div>
+                </div>
+
+                <div class="result-images" id="result-images-box" style="display: none;">
+                    <div class="img-box">
+                        <span>Vùng phát hiện (Detection Box)</span>
+                        <img id="annotated-img" src="" alt="Annotated Image">
+                    </div>
+                    <div class="img-box crop-box">
+                        <span>Vùng biển số cắt riêng (Cropped License Plate)</span>
+                        <img id="crop-img" src="" alt="Cropped Plate">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Parking Building Management System. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('image-file');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        const urlInput = document.getElementById('image-url');
+        const submitBtn = document.getElementById('submit-btn');
+        
+        const loader = document.getElementById('loader');
+        const resultWrapper = document.getElementById('result-wrapper');
+        const placeholder = document.getElementById('placeholder');
+        const plateBox = document.getElementById('plate-box');
+        const plateValue = document.getElementById('plate-value');
+        const resultImagesBox = document.getElementById('result-images-box');
+        const annotatedImg = document.getElementById('annotated-img');
+        const cropImg = document.getElementById('crop-img');
+
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length > 0) {
+                fileNameDisplay.textContent = fileInput.files[0].name;
+                fileNameDisplay.style.color = '#38bdf8';
+                urlInput.value = '';
+            }
+        });
+
+        urlInput.addEventListener('input', () => {
+            if (urlInput.value.trim() !== '') {
+                fileInput.value = '';
+                fileNameDisplay.textContent = 'Kéo thả hoặc Click để chọn ảnh';
+                fileNameDisplay.style.color = 'var(--text-secondary)';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileSelected = fileInput.files.length > 0;
+            const urlProvided = urlInput.value.trim() !== '';
+
+            if (!fileSelected && !urlProvided) {
+                alert('Vui lòng chọn file ảnh hoặc cung cấp URL ảnh!');
+                return;
+            }
+
+            const vehicleType = document.querySelector('input[name="vehicle_type"]:checked').value;
+            const isMotorbike = vehicleType === 'motorbike';
+
+            loader.style.display = 'block';
+            placeholder.style.display = 'none';
+            plateBox.style.display = 'none';
+            resultImagesBox.style.display = 'none';
+            submitBtn.disabled = true;
+
+            try {
+                let response;
+                
+                if (urlProvided) {
+                    response = await fetch('/predict-web', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            image_url: urlInput.value.trim(),
+                            is_motorbike: isMotorbike
+                        })
+                    });
+                } else {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    
+                    response = await fetch(`/predict-file?is_motorbike=${isMotorbike}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
+
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    plateValue.textContent = data.license_plate;
+                    
+                    if (data.annotated_image && data.crop_image) {
+                        annotatedImg.src = 'data:image/jpeg;base64,' + data.annotated_image;
+                        cropImg.src = 'data:image/jpeg;base64,' + data.crop_image;
+                        resultImagesBox.style.display = 'grid';
+                    }
+                    
+                    plateBox.style.display = 'block';
+                } else {
+                    alert('Không nhận diện được: ' + (data.message || 'Lỗi không xác định'));
+                    placeholder.style.display = 'block';
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Đã xảy ra lỗi khi gửi yêu cầu đến server AI.');
+                placeholder.style.display = 'block';
+            } finally {
+                loader.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
