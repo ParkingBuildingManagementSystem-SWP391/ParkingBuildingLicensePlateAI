@@ -12,4 +12,3 @@ models/*.pt
 models/*.onnx
 !models/best.pt
 best_before_*.pt
-ocr_crnn_*.pt

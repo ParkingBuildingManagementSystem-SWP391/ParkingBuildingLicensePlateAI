@@ -10,8 +10,6 @@ pinned: false
 
 # Parking Building License Plate Recognition (FastAPI + YOLOv8 + EasyOCR)
 
-> Pipeline huấn luyện OCR chuyên biệt đã được bổ sung. Xem [TRAINING.md](TRAINING.md) để tạo dataset, pretrain bằng dữ liệu tổng hợp và fine-tune bằng ảnh biển số thật.
-
 Dịch vụ AI độc lập chịu trách nhiệm phát hiện và nhận diện biển số xe Việt Nam. Tiếp nhận dữ liệu từ Backend .NET gửi sang, thực hiện phân tích và trả về thông tin biển số xe sạch (đã chuẩn hóa).
 
 ---

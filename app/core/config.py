@@ -9,7 +9,6 @@ class Settings:
     # Cấu hình đường dẫn Model YOLO
     MODEL_DIR: str = os.path.join(BASE_DIR, "models")
     YOLO_MODEL_PATH: str = os.path.join(MODEL_DIR, "best.pt")
-    OCR_MODEL_PATH: str = os.path.join(MODEL_DIR, "ocr_crnn.pt")
     
     # Sử dụng mô hình nhận diện biển số xe chuyên dụng của Keremberke từ Hugging Face làm Fallback
     # Nhờ đó người dùng test được ngay lập tức mà không cần tự download best.pt

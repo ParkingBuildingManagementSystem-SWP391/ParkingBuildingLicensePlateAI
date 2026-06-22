@@ -7,23 +7,18 @@ import numpy as np
 from ultralytics import YOLO
 
 from app.core.config import settings
-from app.recognition.recognizer import PlateTextRecognizer
-from app.recognition.plate_rules import best_plate_candidate
 from app.utils.helpers import preprocess_license_plate_text
-
-
-TARGET_CROP_WIDTH = 400
+from app.utils.plate_image import preprocess_plate
 
 
 class LicensePlateDetector:
     def __init__(self):
         self.yolo_model = None
         self.ocr_reader = None
-        self.custom_ocr = None
         self.load_models()
 
     def load_models(self):
-        """Load the detector and both OCR options once when the service starts."""
+        """Load YOLO and EasyOCR once when the service starts."""
         model_path = settings.YOLO_MODEL_PATH
         if not os.path.exists(model_path):
             print(f"[WARNING] Custom YOLO model not found: {model_path}")
@@ -38,8 +33,6 @@ class LicensePlateDetector:
             print(f"[ERROR] Could not load YOLO model: {exc}")
             self.yolo_model = None
 
-        self.custom_ocr = PlateTextRecognizer(settings.OCR_MODEL_PATH)
-
         try:
             print(f"[INFO] Loading EasyOCR (gpu={settings.OCR_GPU})")
             self.ocr_reader = easyocr.Reader(
@@ -51,32 +44,6 @@ class LicensePlateDetector:
             print(f"[WARNING] Could not load EasyOCR: {exc}")
             self.ocr_reader = None
 
-    @staticmethod
-    def _preprocess_crop(crop_img: np.ndarray) -> np.ndarray:
-        """Enlarge a small plate crop and improve local contrast for OCR."""
-        if crop_img is None or crop_img.size == 0:
-            raise ValueError("The detected license-plate crop is empty")
-
-        _, width = crop_img.shape[:2]
-        scale = TARGET_CROP_WIDTH / max(width, 1)
-        if scale > 1.0:
-            resized = cv2.resize(
-                crop_img,
-                None,
-                fx=scale,
-                fy=scale,
-                interpolation=cv2.INTER_CUBIC,
-            )
-        else:
-            resized = crop_img
-
-        lab = cv2.cvtColor(resized, cv2.COLOR_BGR2LAB)
-        lightness, channel_a, channel_b = cv2.split(lab)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        enhanced_lightness = clahe.apply(lightness)
-        enhanced = cv2.merge((enhanced_lightness, channel_a, channel_b))
-        return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
-
     def detect_and_recognize(self, image: np.ndarray, is_motorbike: bool = False):
         """Detect the best plate and return text plus annotated/cropped images."""
         if image is None or image.size == 0:
@@ -84,9 +51,8 @@ class LicensePlateDetector:
         if self.yolo_model is None:
             raise RuntimeError("YOLO model is not available")
 
-        custom_ocr_available = self.custom_ocr is not None and self.custom_ocr.available
-        if self.ocr_reader is None and not custom_ocr_available:
-            raise RuntimeError("No OCR recognizer is available")
+        if self.ocr_reader is None:
+            raise RuntimeError("EasyOCR is not available")
 
         results = self.yolo_model.predict(image, verbose=False)
         best_box = None
@@ -117,27 +83,19 @@ class LicensePlateDetector:
         y2 = min(image_height, y2 + pad_y)
 
         crop_img = image[y1:y2, x1:x2]
-        final_crop = self._preprocess_crop(crop_img)
+        final_crop = preprocess_plate(crop_img)
 
-        license_plate = ""
-        if custom_ocr_available:
-            custom_result = self.custom_ocr.recognize(final_crop, is_motorbike)
-            custom_candidate = best_plate_candidate(custom_result)
-            license_plate = custom_candidate.text if custom_candidate is not None else ""
-            print(f"[CUSTOM OCR] Raw: {custom_result} | accepted: {license_plate}")
-
-        if not license_plate and self.ocr_reader is not None:
-            ocr_results = self.ocr_reader.readtext(
-                final_crop,
-                allowlist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                decoder="beamsearch",
-            )
-            print(f"[EASYOCR] Raw result: {ocr_results}")
-            license_plate = preprocess_license_plate_text(
-                ocr_results,
-                is_motorbike,
-                crop_shape=final_crop.shape,
-            )
+        ocr_results = self.ocr_reader.readtext(
+            final_crop,
+            allowlist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            decoder="beamsearch",
+        )
+        print(f"[EASYOCR] Raw result: {ocr_results}")
+        license_plate = preprocess_license_plate_text(
+            ocr_results,
+            is_motorbike,
+            crop_shape=final_crop.shape,
+        )
 
         annotated_image = image.copy()
         cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 3)

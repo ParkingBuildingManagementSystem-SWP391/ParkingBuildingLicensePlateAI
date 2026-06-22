@@ -34,14 +34,8 @@ scratch_*.py
 .DS_Store
 Thumbs.db
 .pytest_cache/
-data/ocr/
-data/ocr_synthetic/
-data/ocr_external/
-data/ocr_external_clean/
 data/detection/
 runs/
-models/ocr_crnn.pt
-models/ocr_crnn_*.pt
 
 # Deployment model used by the Hugging Face Space.
 !models/best.pt
