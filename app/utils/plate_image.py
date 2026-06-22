@@ -1,9 +1,16 @@
 import cv2
 import numpy as np
+from dataclasses import dataclass
 
 
 TARGET_CROP_WIDTH = 400
 MAX_DESKEW_ANGLE = 20.0
+
+
+@dataclass(frozen=True)
+class PlateImageVariants:
+    contrasted: np.ndarray
+    binary: np.ndarray
 
 
 def deskew_plate(crop_img: np.ndarray) -> np.ndarray:
@@ -45,8 +52,8 @@ def deskew_plate(crop_img: np.ndarray) -> np.ndarray:
     )
 
 
-def preprocess_plate(crop_img: np.ndarray) -> np.ndarray:
-    """Run Deskew -> Resize -> Denoise -> Contrast -> Binarize -> Morphology."""
+def preprocess_plate_variants(crop_img: np.ndarray) -> PlateImageVariants:
+    """Create contrast and binary OCR inputs from one normalized plate crop."""
     if crop_img is None or crop_img.size == 0:
         raise ValueError("The detected license-plate crop is empty")
 
@@ -77,4 +84,10 @@ def preprocess_plate(crop_img: np.ndarray) -> np.ndarray:
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     closed = cv2.morphologyEx(foreground, cv2.MORPH_CLOSE, kernel, iterations=1)
     cleaned = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel, iterations=1)
-    return cv2.bitwise_not(cleaned)
+    morphed = cv2.bitwise_not(cleaned)
+    return PlateImageVariants(contrasted=contrasted, binary=morphed)
+
+
+def preprocess_plate(crop_img: np.ndarray) -> np.ndarray:
+    """Return the full Deskew -> ... -> Morphology pipeline output."""
+    return preprocess_plate_variants(crop_img).binary

@@ -7,8 +7,12 @@ import numpy as np
 from ultralytics import YOLO
 
 from app.core.config import settings
-from app.utils.helpers import preprocess_license_plate_text
-from app.utils.plate_image import preprocess_plate
+from app.utils.helpers import (
+    ocr_result_confidence,
+    preprocess_license_plate_text,
+    select_best_ocr_candidate,
+)
+from app.utils.plate_image import preprocess_plate_variants
 
 
 class LicensePlateDetector:
@@ -83,18 +87,33 @@ class LicensePlateDetector:
         y2 = min(image_height, y2 + pad_y)
 
         crop_img = image[y1:y2, x1:x2]
-        final_crop = preprocess_plate(crop_img)
+        variants = preprocess_plate_variants(crop_img)
+        candidates = []
+        for variant_name, ocr_image in (
+            ("contrast", variants.contrasted),
+            ("binary", variants.binary),
+        ):
+            ocr_results = self.ocr_reader.readtext(
+                ocr_image,
+                allowlist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                decoder="beamsearch",
+            )
+            license_plate = preprocess_license_plate_text(
+                ocr_results,
+                is_motorbike,
+                crop_shape=ocr_image.shape,
+            )
+            confidence = ocr_result_confidence(ocr_results)
+            candidates.append((variant_name, license_plate, confidence))
+            print(
+                f"[EASYOCR:{variant_name}] Raw: {ocr_results} | "
+                f"plate: {license_plate} | confidence: {confidence:.3f}"
+            )
 
-        ocr_results = self.ocr_reader.readtext(
-            final_crop,
-            allowlist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-            decoder="beamsearch",
-        )
-        print(f"[EASYOCR] Raw result: {ocr_results}")
-        license_plate = preprocess_license_plate_text(
-            ocr_results,
-            is_motorbike,
-            crop_shape=final_crop.shape,
+        selected_variant, license_plate, selected_confidence = select_best_ocr_candidate(candidates)
+        print(
+            f"[EASYOCR] Selected: {selected_variant} | "
+            f"plate: {license_plate} | confidence: {selected_confidence:.3f}"
         )
 
         annotated_image = image.copy()

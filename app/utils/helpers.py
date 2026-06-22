@@ -1,6 +1,6 @@
 ﻿import re
 
-from app.recognition.plate_rules import best_plate_candidate
+from app.recognition.plate_rules import best_plate_candidate, is_valid_plate
 
 # Bảng quy đổi tương đồng ký tự từ CHỮ sang SỐ (cho phân vùng bắt buộc là SỐ)
 CHAR_TO_NUM = {
@@ -46,6 +46,32 @@ VALID_PROVINCE_CODES = {
 
 # Hạ ngưỡng confidence tối thiểu xuống 0.08 để không bỏ sót dòng trên của xe máy
 MIN_OCR_CONF = 0.20
+
+
+def ocr_result_confidence(ocr_results: list) -> float:
+    """Return character-weighted confidence for EasyOCR output kept by post-processing."""
+    weighted_confidence = 0.0
+    character_count = 0
+    for _, text, confidence in ocr_results:
+        if confidence < MIN_OCR_CONF:
+            continue
+        length = len(re.sub(r"[^A-Za-z0-9]", "", text))
+        weighted_confidence += float(confidence) * length
+        character_count += length
+    return weighted_confidence / character_count if character_count else 0.0
+
+
+def select_best_ocr_candidate(candidates: list[tuple[str, str, float]]) -> tuple[str, str, float]:
+    """Prefer a valid Vietnamese plate, then plausible length and OCR confidence."""
+    if not candidates:
+        return "", "", 0.0
+
+    def rank(candidate: tuple[str, str, float]):
+        _, text, confidence = candidate
+        clean_length = len(re.sub(r"[^A-Za-z0-9]", "", text))
+        return is_valid_plate(text), 7 <= clean_length <= 10, confidence, clean_length
+
+    return max(candidates, key=rank)
 
 
 def clean_motorbike_top_row(text: str, bottom_len: int = 5) -> str:

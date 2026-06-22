@@ -4,20 +4,39 @@ import cv2
 import numpy as np
 
 from app.recognition.plate_rules import is_valid_plate, normalize_plate_text
-from app.utils.plate_image import preprocess_plate, TARGET_CROP_WIDTH
-from app.utils.helpers import correct_license_plate_vietnam, merge_close_boxes
+from app.utils.plate_image import preprocess_plate_variants, TARGET_CROP_WIDTH
+from app.utils.helpers import (
+    correct_license_plate_vietnam,
+    merge_close_boxes,
+    ocr_result_confidence,
+    select_best_ocr_candidate,
+)
 
 
 class RecognitionTests(unittest.TestCase):
-    def test_plate_preprocessing_returns_resized_binary_image(self):
+    def test_plate_preprocessing_returns_contrast_and_binary_variants(self):
         image = np.full((60, 180, 3), 220, dtype=np.uint8)
         cv2.putText(image, "59A12345", (5, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (20, 20, 20), 2)
 
-        processed = preprocess_plate(image)
+        variants = preprocess_plate_variants(image)
 
-        self.assertEqual(processed.ndim, 2)
-        self.assertEqual(processed.shape[1], TARGET_CROP_WIDTH)
-        self.assertTrue(set(np.unique(processed)).issubset({0, 255}))
+        self.assertEqual(variants.contrasted.shape, variants.binary.shape)
+        self.assertEqual(variants.binary.shape[1], TARGET_CROP_WIDTH)
+        self.assertTrue(set(np.unique(variants.binary)).issubset({0, 255}))
+
+    def test_valid_plate_wins_over_higher_confidence_invalid_text(self):
+        candidates = [
+            ("contrast", "59X312345", 0.72),
+            ("binary", "5931234", 0.95),
+        ]
+        self.assertEqual(select_best_ocr_candidate(candidates)[0], "contrast")
+
+    def test_ocr_confidence_is_weighted_by_character_count(self):
+        results = [
+            ([[0, 0]] * 4, "59A", 0.9),
+            ([[0, 0]] * 4, "12345", 0.6),
+        ]
+        self.assertAlmostEqual(ocr_result_confidence(results), (3 * 0.9 + 5 * 0.6) / 8)
 
     def test_position_aware_character_correction(self):
         self.assertEqual(normalize_plate_text("3OA12I45"), "30A12145")
