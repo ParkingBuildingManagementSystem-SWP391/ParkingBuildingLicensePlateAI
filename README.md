@@ -1,3 +1,13 @@
+---
+title: Parking License Plate AI
+emoji: 🚗
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Parking Building License Plate Recognition (FastAPI + YOLOv8 + EasyOCR)
 
 > Pipeline huấn luyện OCR chuyên biệt đã được bổ sung. Xem [TRAINING.md](TRAINING.md) để tạo dataset, pretrain bằng dữ liệu tổng hợp và fine-tune bằng ảnh biển số thật.

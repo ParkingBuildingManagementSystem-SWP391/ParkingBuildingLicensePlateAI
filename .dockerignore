@@ -1,0 +1,15 @@
+.git
+.idea
+.venv
+__pycache__
+*.pyc
+*.log
+scratch_*.py
+runs
+tests
+data
+models/*.pt
+models/*.onnx
+!models/best.pt
+best_before_*.pt
+ocr_crnn_*.pt

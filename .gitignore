@@ -42,3 +42,6 @@ data/detection/
 runs/
 models/ocr_crnn.pt
 models/ocr_crnn_*.pt
+
+# Deployment model used by the Hugging Face Space.
+!models/best.pt

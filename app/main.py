@@ -16,6 +16,12 @@ app = FastAPI(
 # Đăng ký router nhận diện biển số
 app.include_router(predict_router, prefix="")
 
+
+@app.get("/health")
+async def health_check():
+    """Lightweight endpoint used by the hosting platform and Backend."""
+    return {"status": "ok", "service": settings.PROJECT_NAME}
+
 # Cấu hình Templates cho giao diện Dashboard HTML
 templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates")
 templates = Jinja2Templates(directory=templates_dir)
@@ -37,4 +43,5 @@ if __name__ == "__main__":
     
     # Chạy uvicorn server cục bộ
     # Lưu ý: Chạy ở dạng uvicorn app.main:app để hot-reload hoạt động đúng
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)

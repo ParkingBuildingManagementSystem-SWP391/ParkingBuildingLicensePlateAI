@@ -1,7 +1,8 @@
 fastapi>=0.100.0
 uvicorn>=0.22.0
 requests>=2.31.0
-opencv-python>=4.7.0
+# The server does not need OpenCV GUI libraries.
+opencv-python-headless>=4.7.0
 numpy>=1.24.0
 ultralytics>=8.0.0
 easyocr>=1.7.0
