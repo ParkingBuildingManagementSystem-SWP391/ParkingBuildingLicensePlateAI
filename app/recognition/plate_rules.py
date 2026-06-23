@@ -30,6 +30,7 @@ class PlateCandidate:
     text: str
     corrections: int
     series_length: int
+    tail_length: int
 
 
 def clean_plate_text(text: str) -> str:
@@ -84,14 +85,21 @@ def plate_candidates(text: str) -> list[PlateCandidate]:
                 else True
             )
             if candidate[:2] in VALID_PROVINCE_CODES and series_is_allowed:
-                candidates.append(PlateCandidate(candidate, corrections, series_length))
+                candidates.append(PlateCandidate(candidate, corrections, series_length, tail_length))
 
     candidates.sort(key=lambda item: (item.corrections, item.series_length, item.text))
     return candidates
 
 
-def best_plate_candidate(text: str) -> PlateCandidate | None:
+def best_plate_candidate(text: str, preferred_series_length: int | None = None) -> PlateCandidate | None:
     candidates = plate_candidates(text)
+    if preferred_series_length is not None:
+        preferred_candidates = [
+            candidate for candidate in candidates
+            if candidate.series_length == preferred_series_length
+        ]
+        if preferred_candidates:
+            return preferred_candidates[0]
     return candidates[0] if candidates else None
 
 

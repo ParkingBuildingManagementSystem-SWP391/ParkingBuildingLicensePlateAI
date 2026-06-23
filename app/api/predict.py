@@ -14,7 +14,7 @@ router = APIRouter()
 # Schema đầu vào cho API .NET
 class PredictRequest(BaseModel):
     image_url: str
-    is_motorbike: Optional[bool] = False
+    is_motorbike: Optional[bool] = None
 
 # Schema đầu ra cho Web UI
 class PredictWebResponse(BaseModel):
@@ -125,7 +125,7 @@ async def predict_web(payload: PredictRequest):
 
 
 @router.post("/predict-file", response_model=PredictWebResponse)
-async def predict_file(file: UploadFile = File(...), is_motorbike: bool = False):
+async def predict_file(file: UploadFile = File(...), is_motorbike: Optional[bool] = None):
     """
     API hỗ trợ giao diện Web (upload trực tiếp file ảnh để test nhanh).
     """

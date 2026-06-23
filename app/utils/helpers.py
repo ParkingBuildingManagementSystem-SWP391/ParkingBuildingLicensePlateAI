@@ -316,7 +316,31 @@ def correct_license_plate_vietnam(text: str, is_motorbike: bool = False) -> str:
 
     # Ưu tiên phân tích theo vị trí. Bộ phân tích này không chèn/xóa ký tự,
     # vì vậy không biến biển L0/M0 hợp lệ thành series LD/MD.
-    structured_candidate = best_plate_candidate(cleaned_text)
+    preferred_series_length = None
+    if is_motorbike:
+        if len(cleaned_text) == 8:
+            valid_second_series_letters = set("ABCDEFGHKLMNPSTUVXYZ")
+            looks_like_two_letter_motorbike = (
+                cleaned_text[2].isalpha()
+                and cleaned_text[3].isalpha()
+                and cleaned_text[3] in valid_second_series_letters
+                and cleaned_text[4:].isdigit()
+            )
+            preferred_series_length = 2 if looks_like_two_letter_motorbike else 1
+        elif (
+            len(cleaned_text) == 9
+            and cleaned_text[2].isalpha()
+            and cleaned_text[3].isalpha()
+            and cleaned_text[2] in ["A", "M"]
+        ):
+            preferred_series_length = 2
+    elif len(cleaned_text) == 8:
+        preferred_series_length = 1
+
+    structured_candidate = best_plate_candidate(
+        cleaned_text,
+        preferred_series_length=preferred_series_length,
+    )
     if structured_candidate is not None:
         return structured_candidate.text
     

@@ -358,7 +358,7 @@
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+                <div class="form-group" style="display: none; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
                     <label>Loại phương tiện:</label>
                     <div style="display: flex; gap: 2rem; margin-top: 0.5rem;">
                         <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: var(--text-primary)">
@@ -461,9 +461,6 @@
                 return;
             }
 
-            const vehicleType = document.querySelector('input[name="vehicle_type"]:checked').value;
-            const isMotorbike = vehicleType === 'motorbike';
-
             loader.style.display = 'block';
             placeholder.style.display = 'none';
             plateBox.style.display = 'none';
@@ -478,15 +475,14 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
-                            image_url: urlInput.value.trim(),
-                            is_motorbike: isMotorbike
+                            image_url: urlInput.value.trim()
                         })
                     });
                 } else {
                     const formData = new FormData();
                     formData.append('file', fileInput.files[0]);
                     
-                    response = await fetch(`/predict-file?is_motorbike=${isMotorbike}`, {
+                    response = await fetch('/predict-file', {
                         method: 'POST',
                         body: formData
                     });

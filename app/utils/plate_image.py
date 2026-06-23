@@ -11,6 +11,7 @@ MAX_DESKEW_ANGLE = 20.0
 class PlateImageVariants:
     contrasted: np.ndarray
     binary: np.ndarray
+    adaptive: np.ndarray
 
 
 def deskew_plate(crop_img: np.ndarray) -> np.ndarray:
@@ -76,16 +77,31 @@ def preprocess_plate_variants(crop_img: np.ndarray) -> PlateImageVariants:
         255,
         cv2.THRESH_BINARY + cv2.THRESH_OTSU,
     )[1]
+    adaptive = cv2.adaptiveThreshold(
+        contrasted,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        31,
+        11,
+    )
 
     # Keep the output convention stable: dark characters on a light background.
     if np.mean(binary) < 127:
         binary = cv2.bitwise_not(binary)
+    if np.mean(adaptive) < 127:
+        adaptive = cv2.bitwise_not(adaptive)
+
     foreground = cv2.bitwise_not(binary)
+    adaptive_foreground = cv2.bitwise_not(adaptive)
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
     closed = cv2.morphologyEx(foreground, cv2.MORPH_CLOSE, kernel, iterations=1)
     cleaned = cv2.morphologyEx(closed, cv2.MORPH_OPEN, kernel, iterations=1)
     morphed = cv2.bitwise_not(cleaned)
-    return PlateImageVariants(contrasted=contrasted, binary=morphed)
+    adaptive_closed = cv2.morphologyEx(adaptive_foreground, cv2.MORPH_CLOSE, kernel, iterations=1)
+    adaptive_cleaned = cv2.morphologyEx(adaptive_closed, cv2.MORPH_OPEN, kernel, iterations=1)
+    adaptive_morphed = cv2.bitwise_not(adaptive_cleaned)
+    return PlateImageVariants(contrasted=contrasted, binary=morphed, adaptive=adaptive_morphed)
 
 
 def preprocess_plate(crop_img: np.ndarray) -> np.ndarray:

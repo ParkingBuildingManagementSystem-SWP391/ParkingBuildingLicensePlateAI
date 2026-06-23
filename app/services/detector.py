@@ -1,5 +1,6 @@
-import base64
 import os
+import base64
+from typing import Optional
 
 import cv2
 import easyocr
@@ -13,6 +14,10 @@ from app.utils.helpers import (
     select_best_ocr_candidate,
 )
 from app.utils.plate_image import preprocess_plate_variants
+
+
+EASYOCR_ALLOWLIST = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+TWO_LINE_RATIO_THRESHOLD = 2.0
 
 
 class LicensePlateDetector:
@@ -48,7 +53,30 @@ class LicensePlateDetector:
             print(f"[WARNING] Could not load EasyOCR: {exc}")
             self.ocr_reader = None
 
-    def detect_and_recognize(self, image: np.ndarray, is_motorbike: bool = False):
+    def _read_easyocr(self, image: np.ndarray):
+        return self.ocr_reader.readtext(
+            image,
+            allowlist=EASYOCR_ALLOWLIST,
+            decoder="beamsearch",
+        )
+
+    def _read_two_line_easyocr(self, image: np.ndarray):
+        height = image.shape[0]
+        if height < 2:
+            return self._read_easyocr(image)
+
+        split_y = height // 2
+        top_results = self._read_easyocr(image[:split_y, :])
+        bottom_results = self._read_easyocr(image[split_y:, :])
+
+        adjusted_bottom = []
+        for bbox, text, confidence in bottom_results:
+            adjusted_bbox = [[point[0], point[1] + split_y] for point in bbox]
+            adjusted_bottom.append((adjusted_bbox, text, confidence))
+
+        return top_results + adjusted_bottom
+
+    def detect_and_recognize(self, image: np.ndarray, is_motorbike: Optional[bool] = None):
         """Detect the best plate and return text plus annotated/cropped images."""
         if image is None or image.size == 0:
             raise ValueError("Input image is empty")
@@ -74,46 +102,64 @@ class LicensePlateDetector:
         if best_box is None:
             return None, None, None
 
-        x1, y1, x2, y2 = map(int, best_box.xyxy[0].detach().cpu().tolist())
-        box_width = x2 - x1
-        box_height = y2 - y1
-        pad_x = int(box_width * 0.15)
-        pad_y = int(box_height * (0.18 if is_motorbike else 0.10))
+        original_x1, original_y1, original_x2, original_y2 = map(int, best_box.xyxy[0].detach().cpu().tolist())
+        box_width = original_x2 - original_x1
+        box_height = original_y2 - original_y1
 
-        image_height, image_width = image.shape[:2]
-        x1 = max(0, x1 - pad_x)
-        y1 = max(0, y1 - pad_y)
-        x2 = min(image_width, x2 + pad_x)
-        y2 = min(image_height, y2 + pad_y)
-
-        crop_img = image[y1:y2, x1:x2]
-        variants = preprocess_plate_variants(crop_img)
+        modes = [is_motorbike] if is_motorbike is not None else [False, True]
         candidates = []
-        for variant_name, ocr_image in (
-            ("contrast", variants.contrasted),
-            ("binary", variants.binary),
-        ):
-            ocr_results = self.ocr_reader.readtext(
-                ocr_image,
-                allowlist="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                decoder="beamsearch",
-            )
-            license_plate = preprocess_license_plate_text(
-                ocr_results,
-                is_motorbike,
-                crop_shape=ocr_image.shape,
-            )
-            confidence = ocr_result_confidence(ocr_results)
-            candidates.append((variant_name, license_plate, confidence))
-            print(
-                f"[EASYOCR:{variant_name}] Raw: {ocr_results} | "
-                f"plate: {license_plate} | confidence: {confidence:.3f}"
-            )
+        candidate_images = {}
+
+        for mode_is_motorbike in modes:
+            mode_label = "motorbike" if mode_is_motorbike else "car"
+            pad_x = int(box_width * 0.15)
+            pad_y = int(box_height * (0.18 if mode_is_motorbike else 0.10))
+
+            image_height, image_width = image.shape[:2]
+            x1 = max(0, original_x1 - pad_x)
+            y1 = max(0, original_y1 - pad_y)
+            x2 = min(image_width, original_x2 + pad_x)
+            y2 = min(image_height, original_y2 + pad_y)
+
+            crop_img = image[y1:y2, x1:x2]
+            variants = preprocess_plate_variants(crop_img)
+            for variant_name, ocr_image in (
+                ("contrast", variants.contrasted),
+                ("binary", variants.binary),
+                ("adaptive", variants.adaptive),
+            ):
+                ocr_attempts = [("full", self._read_easyocr(ocr_image))]
+                ratio = ocr_image.shape[1] / max(ocr_image.shape[0], 1)
+                if mode_is_motorbike or ratio < TWO_LINE_RATIO_THRESHOLD:
+                    ocr_attempts.append(("split", self._read_two_line_easyocr(ocr_image)))
+
+                for layout_name, ocr_results in ocr_attempts:
+                    candidate_key = f"{mode_label}:{variant_name}:{layout_name}"
+                    license_plate = preprocess_license_plate_text(
+                        ocr_results,
+                        mode_is_motorbike,
+                        crop_shape=ocr_image.shape,
+                    )
+                    confidence = ocr_result_confidence(ocr_results)
+                    candidates.append((candidate_key, license_plate, confidence))
+                    candidate_images[candidate_key] = (crop_img, (x1, y1, x2, y2))
+                    print(
+                        f"[EASYOCR:{candidate_key}] Raw: {ocr_results} | "
+                        f"plate: {license_plate} | confidence: {confidence:.3f}"
+                    )
 
         selected_variant, license_plate, selected_confidence = select_best_ocr_candidate(candidates)
         print(
             f"[EASYOCR] Selected: {selected_variant} | "
             f"plate: {license_plate} | confidence: {selected_confidence:.3f}"
+        )
+
+        crop_img, (x1, y1, x2, y2) = candidate_images.get(
+            selected_variant,
+            (
+                image[original_y1:original_y2, original_x1:original_x2],
+                (original_x1, original_y1, original_x2, original_y2),
+            ),
         )
 
         annotated_image = image.copy()

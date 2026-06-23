@@ -21,8 +21,10 @@ class RecognitionTests(unittest.TestCase):
         variants = preprocess_plate_variants(image)
 
         self.assertEqual(variants.contrasted.shape, variants.binary.shape)
+        self.assertEqual(variants.contrasted.shape, variants.adaptive.shape)
         self.assertEqual(variants.binary.shape[1], TARGET_CROP_WIDTH)
         self.assertTrue(set(np.unique(variants.binary)).issubset({0, 255}))
+        self.assertTrue(set(np.unique(variants.adaptive)).issubset({0, 255}))
 
     def test_valid_plate_wins_over_higher_confidence_invalid_text(self):
         candidates = [
@@ -48,6 +50,24 @@ class RecognitionTests(unittest.TestCase):
         self.assertEqual(correct_license_plate_vietnam("28L08349"), "28L08349")
         self.assertEqual(correct_license_plate_vietnam("80LD12345"), "80LD12345")
         self.assertEqual(correct_license_plate_vietnam("80QT12345"), "80QT12345")
+
+    def test_easyocr_trap_plates_keep_the_right_series_shape(self):
+        cases = [
+            ("29A50505", "29ASOSOS", False),
+            ("43C67890", "43CG789O", False),
+            ("51F88888", "SIFB8B8B", True),
+            ("36B50555", "3GBSOSSS", True),
+            ("63M19999", "G3MI9999", True),
+            ("51FB4779", "SIFB4779", True),
+            ("59AA12345", "S9AAI234S", True),
+        ]
+
+        for expected, raw_ocr, is_motorbike in cases:
+            with self.subTest(raw_ocr=raw_ocr):
+                self.assertEqual(
+                    correct_license_plate_vietnam(raw_ocr, is_motorbike=is_motorbike),
+                    expected,
+                )
 
     def test_close_numeric_boxes_are_not_merged_into_a_letter(self):
         boxes = [
