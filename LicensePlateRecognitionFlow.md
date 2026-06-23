@@ -18,10 +18,10 @@ sequenceDiagram
 
     Note over FE, BE: BƯỚC 1: NHẬN DIỆN ẢNH (RECOGNITION PHASE)
     Staff->>FE: Chụp/Chọn ảnh phương tiện
-    FE->>BE: POST /api/Parking/recognize (FormData: ImageFile, VehicleType)
+    FE->>BE: POST /api/Parking/recognize (FormData: ImageFile)
     BE->>Cloudinary: Tải ảnh lên thư mục tạm (parking_temp)
     Cloudinary-->>BE: Trả về URL ảnh (RAW URL)
-    BE->>AI: POST /predict (Payload: image_url, is_motorbike)
+    BE->>AI: POST /predict (Payload: image_url)
     AI->>AI: Tải ảnh từ URL & Chạy YOLO + EasyOCR
     AI-->>BE: Trả về biển số dự đoán (predicted_plate)
     BE-->>FE: Trả về { imageUrl, predictedPlate }
@@ -182,7 +182,7 @@ Tách biệt luồng nhận dạng ảnh ra khỏi luồng lưu database.
 ```csharp
         [Authorize(Roles = "Staff")]
         [HttpPost("recognize")]
-        public async Task<IActionResult> RecognizePlate([FromForm] IFormFile imageFile, [FromForm] int vehicleTypeId)
+        public async Task<IActionResult> RecognizePlate([FromForm] IFormFile imageFile)
         {
             try
             {
@@ -193,7 +193,6 @@ Tách biệt luồng nhận dạng ảnh ra khỏi luồng lưu database.
                 var uploadResult = await _imageStorageService.UploadImageDetailedAsync(imageFile, "parking_temp");
 
                 // 2. Gọi dịch vụ Python AI bằng URL gốc (RawUrl)
-                bool isMotorbike = (vehicleTypeId == 2);
                 
                 string detectedPlate = "";
                 try 
@@ -273,11 +272,10 @@ Nhận kết quả cuối cùng từ FE gửi lên và lưu chính thức vào D
 #### Bước 1: Khai báo các hàm kết nối API mới trong `parkingService.js`
 
 ```javascript
-  recognizeLicensePlate: async (imageFile, vehicleTypeId) => {
+  recognizeLicensePlate: async (imageFile) => {
     try {
       const formData = new FormData();
       formData.append("imageFile", imageFile);
-      formData.append("vehicleTypeId", vehicleTypeId);
 
       const response = await api.post('/Parking/recognize', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -313,10 +311,7 @@ Nhận kết quả cuối cùng từ FE gửi lên và lưu chính thức vào D
                 setEntryOcrResult(null);
                 
                 try {
-                  const type = checkInForm.getFieldValue('type') || 'Car';
-                  const typeId = VEHICLE_TYPE_MAP[type] || 3;
-                  
-                  const result = await parkingService.recognizeLicensePlate(file, typeId);
+                  const result = await parkingService.recognizeLicensePlate(file);
                   
                   if (result && result.isSuccess) {
                     setEntryOcrResult(result.predictedPlate);

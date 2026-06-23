@@ -1,6 +1,5 @@
 import os
 import base64
-from typing import Optional
 
 import cv2
 import easyocr
@@ -78,7 +77,7 @@ class LicensePlateDetector:
 
         return top_results + adjusted_bottom
 
-    def detect_and_recognize(self, image: np.ndarray, is_motorbike: Optional[bool] = None):
+    def detect_and_recognize(self, image: np.ndarray):
         """Detect the best plate and return text plus annotated/cropped images."""
         if image is None or image.size == 0:
             raise ValueError("Input image is empty")
@@ -108,7 +107,7 @@ class LicensePlateDetector:
         box_width = original_x2 - original_x1
         box_height = original_y2 - original_y1
 
-        modes = [is_motorbike] if is_motorbike is not None else [False, True]
+        modes = [False, True]
         candidates = []
         candidate_images = {}
         fast_accept_variant = None

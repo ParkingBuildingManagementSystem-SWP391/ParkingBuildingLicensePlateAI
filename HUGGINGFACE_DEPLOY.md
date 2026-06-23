@@ -42,8 +42,7 @@ Content-Type: application/json
 
 ```json
 {
-  "image_url": "https://res.cloudinary.com/.../vehicle.jpg",
-  "is_motorbike": true
+  "image_url": "https://res.cloudinary.com/.../vehicle.jpg"
 }
 ```
 

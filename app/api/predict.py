@@ -14,7 +14,6 @@ router = APIRouter()
 # Schema đầu vào cho API .NET
 class PredictRequest(BaseModel):
     image_url: str
-    is_motorbike: Optional[bool] = None
 
 # Schema đầu ra cho Web UI
 class PredictWebResponse(BaseModel):
@@ -69,7 +68,7 @@ async def predict(payload: PredictRequest):
             return {"status": "error", "message": str(img_err)}
 
         # Chạy nhận dạng biển số xe
-        license_plate, _, _ = detector_service.detect_and_recognize(image, payload.is_motorbike)
+        license_plate, _, _ = detector_service.detect_and_recognize(image)
 
         if not license_plate:
             return {
@@ -105,7 +104,7 @@ async def predict_web(payload: PredictRequest):
         except Exception as img_err:
             return {"status": "error", "message": str(img_err)}
 
-        license_plate, annotated_b64, crop_b64 = detector_service.detect_and_recognize(image, payload.is_motorbike)
+        license_plate, annotated_b64, crop_b64 = detector_service.detect_and_recognize(image)
         
         if not license_plate:
             return {"status": "error", "message": "Không phát hiện thấy biển số xe"}
@@ -125,7 +124,7 @@ async def predict_web(payload: PredictRequest):
 
 
 @router.post("/predict-file", response_model=PredictWebResponse)
-async def predict_file(file: UploadFile = File(...), is_motorbike: Optional[bool] = None):
+async def predict_file(file: UploadFile = File(...)):
     """
     API hỗ trợ giao diện Web (upload trực tiếp file ảnh để test nhanh).
     """
@@ -137,7 +136,7 @@ async def predict_file(file: UploadFile = File(...), is_motorbike: Optional[bool
         if image is None:
             return {"status": "error", "message": "Ảnh tải lên không hợp lệ"}
 
-        license_plate, annotated_b64, crop_b64 = detector_service.detect_and_recognize(image, is_motorbike)
+        license_plate, annotated_b64, crop_b64 = detector_service.detect_and_recognize(image)
         
         if not license_plate:
             return {"status": "error", "message": "Không phát hiện thấy biển số xe"}

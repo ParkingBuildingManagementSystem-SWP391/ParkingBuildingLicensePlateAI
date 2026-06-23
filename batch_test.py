@@ -18,7 +18,7 @@ def clean_text(text):
     # Chỉ giữ chữ và số, viết hoa
     return re.sub(r'[^A-Za-z0-9]', '', text).upper()
 
-def run_batch_test(images_dir, labels_dir, is_motorbike=True):
+def run_batch_test(images_dir, labels_dir):
     if not os.path.exists(images_dir):
         print(f"Lỗi: Thư mục chứa ảnh không tồn tại: {images_dir}")
         return
@@ -60,7 +60,7 @@ def run_batch_test(images_dir, labels_dir, is_motorbike=True):
             
         # Chạy nhận diện
         try:
-            recognized_raw, _, _ = detector_service.detect_and_recognize(img, is_motorbike=is_motorbike)
+            recognized_raw, _, _ = detector_service.detect_and_recognize(img)
             recognized = clean_text(recognized_raw)
         except Exception as e:
             recognized = ""
@@ -123,4 +123,4 @@ if __name__ == "__main__":
     img_dir = sys.argv[1] if len(sys.argv) > 1 else default_images
     lbl_dir = sys.argv[2] if len(sys.argv) > 2 else default_labels
     
-    run_batch_test(img_dir, lbl_dir, is_motorbike=True)
+    run_batch_test(img_dir, lbl_dir)
