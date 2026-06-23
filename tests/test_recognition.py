@@ -7,6 +7,7 @@ from app.recognition.plate_rules import is_valid_plate, normalize_plate_text
 from app.utils.plate_image import preprocess_plate_variants, TARGET_CROP_WIDTH
 from app.utils.helpers import (
     correct_license_plate_vietnam,
+    is_fast_accept_ocr_candidate,
     merge_close_boxes,
     ocr_result_confidence,
     select_best_ocr_candidate,
@@ -32,6 +33,11 @@ class RecognitionTests(unittest.TestCase):
             ("binary", "5931234", 0.95),
         ]
         self.assertEqual(select_best_ocr_candidate(candidates)[0], "contrast")
+
+    def test_fast_accept_requires_valid_plate_and_high_confidence(self):
+        self.assertTrue(is_fast_accept_ocr_candidate("59E121500", 0.945))
+        self.assertFalse(is_fast_accept_ocr_candidate("59E121500", 0.70))
+        self.assertFalse(is_fast_accept_ocr_candidate("59ET1215001", 0.95))
 
     def test_ocr_confidence_is_weighted_by_character_count(self):
         results = [

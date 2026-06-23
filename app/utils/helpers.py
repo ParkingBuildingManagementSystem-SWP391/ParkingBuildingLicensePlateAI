@@ -74,6 +74,12 @@ def select_best_ocr_candidate(candidates: list[tuple[str, str, float]]) -> tuple
     return max(candidates, key=rank)
 
 
+def is_fast_accept_ocr_candidate(text: str, confidence: float, threshold: float = 0.88) -> bool:
+    """Return True when an OCR candidate is good enough to skip slower fallbacks."""
+    clean_length = len(re.sub(r"[^A-Za-z0-9]", "", text))
+    return is_valid_plate(text) and 7 <= clean_length <= 10 and confidence >= threshold
+
+
 def clean_motorbike_top_row(text: str, bottom_len: int = 5) -> str:
     """
     Làm sạch dòng trên của biển số xe máy (Ví dụ: '594D1' -> '59D1').

@@ -9,6 +9,7 @@ from ultralytics import YOLO
 
 from app.core.config import settings
 from app.utils.helpers import (
+    is_fast_accept_ocr_candidate,
     ocr_result_confidence,
     preprocess_license_plate_text,
     select_best_ocr_candidate,
@@ -18,6 +19,7 @@ from app.utils.plate_image import preprocess_plate_variants
 
 EASYOCR_ALLOWLIST = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 TWO_LINE_RATIO_THRESHOLD = 2.0
+FAST_ACCEPT_CONFIDENCE = 0.88
 
 
 class LicensePlateDetector:
@@ -109,6 +111,7 @@ class LicensePlateDetector:
         modes = [is_motorbike] if is_motorbike is not None else [False, True]
         candidates = []
         candidate_images = {}
+        fast_accept_variant = None
 
         for mode_is_motorbike in modes:
             mode_label = "motorbike" if mode_is_motorbike else "car"
@@ -124,8 +127,8 @@ class LicensePlateDetector:
             crop_img = image[y1:y2, x1:x2]
             variants = preprocess_plate_variants(crop_img)
             for variant_name, ocr_image in (
-                ("contrast", variants.contrasted),
                 ("binary", variants.binary),
+                ("contrast", variants.contrasted),
                 ("adaptive", variants.adaptive),
             ):
                 ocr_attempts = [("full", self._read_easyocr(ocr_image))]
@@ -147,8 +150,24 @@ class LicensePlateDetector:
                         f"[EASYOCR:{candidate_key}] Raw: {ocr_results} | "
                         f"plate: {license_plate} | confidence: {confidence:.3f}"
                     )
+                    if is_fast_accept_ocr_candidate(
+                        license_plate,
+                        confidence,
+                        FAST_ACCEPT_CONFIDENCE,
+                    ):
+                        fast_accept_variant = candidate_key
+                        break
+                if fast_accept_variant:
+                    break
+            if fast_accept_variant:
+                break
 
-        selected_variant, license_plate, selected_confidence = select_best_ocr_candidate(candidates)
+        if fast_accept_variant:
+            selected_variant, license_plate, selected_confidence = next(
+                candidate for candidate in candidates if candidate[0] == fast_accept_variant
+            )
+        else:
+            selected_variant, license_plate, selected_confidence = select_best_ocr_candidate(candidates)
         print(
             f"[EASYOCR] Selected: {selected_variant} | "
             f"plate: {license_plate} | confidence: {selected_confidence:.3f}"
