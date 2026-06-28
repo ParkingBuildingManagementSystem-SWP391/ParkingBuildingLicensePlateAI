@@ -36,6 +36,7 @@ class RecognitionTests(unittest.TestCase):
 
     def test_fast_accept_requires_valid_plate_and_high_confidence(self):
         self.assertTrue(is_fast_accept_ocr_candidate("59E121500", 0.945))
+        self.assertFalse(is_fast_accept_ocr_candidate("59E121500", 0.945, is_motorbike=False))
         self.assertFalse(is_fast_accept_ocr_candidate("59E121500", 0.70))
         self.assertFalse(is_fast_accept_ocr_candidate("59ET1215001", 0.95))
 
@@ -50,6 +51,12 @@ class RecognitionTests(unittest.TestCase):
         self.assertEqual(normalize_plate_text("3OA12I45"), "30A12145")
         self.assertEqual(normalize_plate_text("59X3I2345"), "59X312345")
         self.assertTrue(is_valid_plate("59X312345"))
+
+    def test_car_mode_trims_extra_tail_digit_before_accepting_subseries_shape(self):
+        from app.utils.helpers import correct_license_plate_vietnam
+
+        self.assertEqual(correct_license_plate_vietnam("59E121500", is_motorbike=False), "59E12150")
+        self.assertEqual(correct_license_plate_vietnam("59X312345", is_motorbike=True), "59X312345")
 
     def test_valid_l0_and_m0_are_not_changed_to_special_series(self):
         self.assertEqual(correct_license_plate_vietnam("50M09666"), "50M09666")

@@ -67,17 +67,43 @@ def select_best_ocr_candidate(candidates: list[tuple[str, str, float]]) -> tuple
         return "", "", 0.0
 
     def rank(candidate: tuple[str, str, float]):
-        _, text, confidence = candidate
+        candidate_key, text, confidence = candidate
         clean_length = len(re.sub(r"[^A-Za-z0-9]", "", text))
-        return is_valid_plate(text), 7 <= clean_length <= 10, confidence, clean_length
+        is_car_candidate = candidate_key.startswith("car:")
+        is_motorbike_candidate = candidate_key.startswith("motorbike:")
+        allow_motorbike_shape = is_motorbike_candidate or not is_car_candidate
+        valid_for_mode = is_valid_plate(
+            text,
+            allow_motorbike_subseries=allow_motorbike_shape,
+            allow_general_two_letter=allow_motorbike_shape,
+        )
+        adjusted_confidence = confidence
+        if is_motorbike_candidate:
+            adjusted_confidence += 0.04
+        if candidate_key.endswith(":split"):
+            adjusted_confidence += 0.02
+        return valid_for_mode, 7 <= clean_length <= 9, adjusted_confidence, -abs(clean_length - 8)
 
     return max(candidates, key=rank)
 
 
-def is_fast_accept_ocr_candidate(text: str, confidence: float, threshold: float = 0.88) -> bool:
+def is_fast_accept_ocr_candidate(
+    text: str,
+    confidence: float,
+    threshold: float = 0.88,
+    is_motorbike: bool = True,
+) -> bool:
     """Return True when an OCR candidate is good enough to skip slower fallbacks."""
     clean_length = len(re.sub(r"[^A-Za-z0-9]", "", text))
-    return is_valid_plate(text) and 7 <= clean_length <= 10 and confidence >= threshold
+    return (
+        is_valid_plate(
+            text,
+            allow_motorbike_subseries=is_motorbike,
+            allow_general_two_letter=is_motorbike,
+        )
+        and 7 <= clean_length <= 9
+        and confidence >= threshold
+    )
 
 
 def clean_motorbike_top_row(text: str, bottom_len: int = 5) -> str:
@@ -343,9 +369,25 @@ def correct_license_plate_vietnam(text: str, is_motorbike: bool = False) -> str:
     elif len(cleaned_text) == 8:
         preferred_series_length = 1
 
+    if (
+        not is_motorbike
+        and len(cleaned_text) == 9
+        and cleaned_text[2].isalpha()
+        and cleaned_text[3].isdigit()
+    ):
+        trimmed_candidate = best_plate_candidate(
+            cleaned_text[:8],
+            allow_motorbike_subseries=False,
+            allow_general_two_letter=False,
+        )
+        if trimmed_candidate is not None and trimmed_candidate.text == cleaned_text[:8]:
+            return trimmed_candidate.text
+
     structured_candidate = best_plate_candidate(
         cleaned_text,
         preferred_series_length=preferred_series_length,
+        allow_motorbike_subseries=is_motorbike,
+        allow_general_two_letter=is_motorbike,
     )
     if structured_candidate is not None:
         return structured_candidate.text

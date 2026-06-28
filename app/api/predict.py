@@ -68,7 +68,7 @@ async def predict(payload: PredictRequest):
             return {"status": "error", "message": str(img_err)}
 
         # Chạy nhận dạng biển số xe
-        license_plate, _, _ = detector_service.detect_and_recognize(image)
+        license_plate, _, _ = detector_service.detect_and_recognize(image, include_images=False)
 
         if not license_plate:
             return {

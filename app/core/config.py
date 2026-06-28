@@ -17,6 +17,7 @@ class Settings:
     # Cấu hình ngôn ngữ OCR
     OCR_LANGUAGES: list = ["en"]
     OCR_GPU: bool = False  # Đổi thành True nếu hệ thống có GPU NVIDIA đã cài CUDA
+    OCR_FAST_MODE: bool = True
 
 settings = Settings()
 

@@ -18,7 +18,8 @@ from app.utils.plate_image import preprocess_plate_variants
 
 EASYOCR_ALLOWLIST = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 TWO_LINE_RATIO_THRESHOLD = 2.0
-FAST_ACCEPT_CONFIDENCE = 0.88
+FAST_ACCEPT_CONFIDENCE = 0.82
+SPLIT_FALLBACK_CONFIDENCE = 0.75
 
 
 class LicensePlateDetector:
@@ -77,7 +78,7 @@ class LicensePlateDetector:
 
         return top_results + adjusted_bottom
 
-    def detect_and_recognize(self, image: np.ndarray):
+    def detect_and_recognize(self, image: np.ndarray, include_images: bool = True):
         """Detect the best plate and return text plus annotated/cropped images."""
         if image is None or image.size == 0:
             raise ValueError("Input image is empty")
@@ -107,7 +108,8 @@ class LicensePlateDetector:
         box_width = original_x2 - original_x1
         box_height = original_y2 - original_y1
 
-        modes = [False, True]
+        box_ratio = box_width / max(box_height, 1)
+        modes = [True, False] if box_ratio < TWO_LINE_RATIO_THRESHOLD else [False, True]
         candidates = []
         candidate_images = {}
         fast_accept_variant = None
@@ -125,18 +127,49 @@ class LicensePlateDetector:
 
             crop_img = image[y1:y2, x1:x2]
             variants = preprocess_plate_variants(crop_img)
-            for variant_name, ocr_image in (
+            variant_images = [
                 ("binary", variants.binary),
                 ("contrast", variants.contrasted),
-                ("adaptive", variants.adaptive),
-            ):
-                ocr_attempts = [("full", self._read_easyocr(ocr_image))]
-                ratio = ocr_image.shape[1] / max(ocr_image.shape[0], 1)
-                if mode_is_motorbike or ratio < TWO_LINE_RATIO_THRESHOLD:
-                    ocr_attempts.append(("split", self._read_two_line_easyocr(ocr_image)))
+            ]
+            if not settings.OCR_FAST_MODE:
+                variant_images.append(("adaptive", variants.adaptive))
 
-                for layout_name, ocr_results in ocr_attempts:
-                    candidate_key = f"{mode_label}:{variant_name}:{layout_name}"
+            for variant_name, ocr_image in variant_images:
+                ratio = ocr_image.shape[1] / max(ocr_image.shape[0], 1)
+
+                ocr_results = self._read_easyocr(ocr_image)
+                candidate_key = f"{mode_label}:{variant_name}:full"
+                license_plate = preprocess_license_plate_text(
+                    ocr_results,
+                    mode_is_motorbike,
+                    crop_shape=ocr_image.shape,
+                )
+                confidence = ocr_result_confidence(ocr_results)
+                candidates.append((candidate_key, license_plate, confidence))
+                candidate_images[candidate_key] = (crop_img, (x1, y1, x2, y2))
+                print(
+                    f"[EASYOCR:{candidate_key}] Raw: {ocr_results} | "
+                    f"plate: {license_plate} | confidence: {confidence:.3f}"
+                )
+                if is_fast_accept_ocr_candidate(
+                    license_plate,
+                    confidence,
+                    FAST_ACCEPT_CONFIDENCE,
+                    mode_is_motorbike,
+                ):
+                    fast_accept_variant = candidate_key
+                    break
+
+                should_try_split = (
+                    (mode_is_motorbike or ratio < TWO_LINE_RATIO_THRESHOLD)
+                    and (
+                        not settings.OCR_FAST_MODE
+                        or confidence < SPLIT_FALLBACK_CONFIDENCE
+                    )
+                )
+                if should_try_split:
+                    ocr_results = self._read_two_line_easyocr(ocr_image)
+                    candidate_key = f"{mode_label}:{variant_name}:split"
                     license_plate = preprocess_license_plate_text(
                         ocr_results,
                         mode_is_motorbike,
@@ -153,6 +186,7 @@ class LicensePlateDetector:
                         license_plate,
                         confidence,
                         FAST_ACCEPT_CONFIDENCE,
+                        mode_is_motorbike,
                     ):
                         fast_accept_variant = candidate_key
                         break
@@ -179,6 +213,9 @@ class LicensePlateDetector:
                 (original_x1, original_y1, original_x2, original_y2),
             ),
         )
+
+        if not include_images:
+            return license_plate, None, None
 
         annotated_image = image.copy()
         cv2.rectangle(annotated_image, (x1, y1), (x2, y2), (0, 255, 0), 3)
