@@ -123,6 +123,40 @@ async def predict_web(payload: PredictRequest):
         return {"status": "error", "message": str(e)}
 
 
+@router.post("/predict-file-fast")
+async def predict_file_fast(file: UploadFile = File(...)):
+    """
+    API nhẹ cho Backend .NET: upload file ảnh trực tiếp và chỉ trả biển số,
+    không trả ảnh base64 để tránh response nặng và timeout.
+    """
+    try:
+        contents = await file.read()
+        image_bytes = np.frombuffer(contents, dtype=np.uint8)
+        image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+
+        if image is None:
+            return {"status": "error", "message": "Ảnh tải lên không hợp lệ"}
+
+        license_plate, _, _ = detector_service.detect_and_recognize(
+            image,
+            include_images=False
+        )
+
+        if not license_plate:
+            return {"status": "error", "message": "Không phát hiện thấy biển số xe"}
+
+        return {
+            "status": "success",
+            "license_plate": license_plate
+        }
+    except Exception as e:
+        import traceback
+        log_path = os.path.join(settings.BASE_DIR, "error_traceback.log")
+        with open(log_path, "w", encoding="utf-8") as f:
+            traceback.print_exc(file=f)
+        return {"status": "error", "message": str(e)}
+
+
 @router.post("/predict-file", response_model=PredictWebResponse)
 async def predict_file(file: UploadFile = File(...)):
     """
