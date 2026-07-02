@@ -22,6 +22,21 @@ FAST_ACCEPT_CONFIDENCE = 0.82
 SPLIT_FALLBACK_CONFIDENCE = 0.75
 
 
+def resize_for_detection(image: np.ndarray) -> np.ndarray:
+    max_side = settings.MAX_DETECT_IMAGE_SIDE
+    if not max_side or max_side <= 0:
+        return image
+
+    height, width = image.shape[:2]
+    longest_side = max(height, width)
+    if longest_side <= max_side:
+        return image
+
+    scale = max_side / longest_side
+    target_size = (int(round(width * scale)), int(round(height * scale)))
+    return cv2.resize(image, target_size, interpolation=cv2.INTER_AREA)
+
+
 class LicensePlateDetector:
     def __init__(self):
         self.yolo_model = None
@@ -55,11 +70,37 @@ class LicensePlateDetector:
             print(f"[WARNING] Could not load EasyOCR: {exc}")
             self.ocr_reader = None
 
+        if settings.WARMUP_ON_STARTUP:
+            self.warmup()
+
+    def warmup(self):
+        """Run tiny startup predictions so the first real request is faster."""
+        try:
+            if self.yolo_model is not None:
+                warmup_image = np.zeros((320, 320, 3), dtype=np.uint8)
+                self.yolo_model.predict(warmup_image, verbose=False)
+            if self.ocr_reader is not None:
+                warmup_plate = np.full((80, 240), 255, dtype=np.uint8)
+                cv2.putText(
+                    warmup_plate,
+                    "59A12345",
+                    (8, 52),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    1.0,
+                    0,
+                    2,
+                )
+                self._read_easyocr(warmup_plate)
+            print("[INFO] Model warmup completed")
+        except Exception as exc:
+            print(f"[WARNING] Model warmup skipped: {exc}")
+
     def _read_easyocr(self, image: np.ndarray):
         return self.ocr_reader.readtext(
             image,
             allowlist=EASYOCR_ALLOWLIST,
-            decoder="beamsearch",
+            decoder=settings.OCR_DECODER,
+            beamWidth=settings.OCR_BEAM_WIDTH,
         )
 
     def _read_two_line_easyocr(self, image: np.ndarray):
@@ -88,6 +129,8 @@ class LicensePlateDetector:
         if self.ocr_reader is None:
             raise RuntimeError("EasyOCR is not available")
 
+        image = resize_for_detection(image)
+
         results = self.yolo_model.predict(image, verbose=False)
         best_box = None
         best_confidence = 0.0
@@ -109,7 +152,11 @@ class LicensePlateDetector:
         box_height = original_y2 - original_y1
 
         box_ratio = box_width / max(box_height, 1)
-        modes = [True, False] if box_ratio < TWO_LINE_RATIO_THRESHOLD else [False, True]
+        primary_mode = box_ratio < TWO_LINE_RATIO_THRESHOLD
+        if settings.OCR_FAST_MODE and not settings.OCR_TRY_ALTERNATE_MODE:
+            modes = [primary_mode]
+        else:
+            modes = [True, False] if primary_mode else [False, True]
         candidates = []
         candidate_images = {}
         fast_accept_variant = None
@@ -127,12 +174,14 @@ class LicensePlateDetector:
 
             crop_img = image[y1:y2, x1:x2]
             variants = preprocess_plate_variants(crop_img)
-            variant_images = [
-                ("binary", variants.binary),
-                ("contrast", variants.contrasted),
-            ]
-            if not settings.OCR_FAST_MODE:
-                variant_images.append(("adaptive", variants.adaptive))
+            if settings.OCR_FAST_MODE:
+                variant_images = [("binary", variants.binary)]
+            else:
+                variant_images = [
+                    ("binary", variants.binary),
+                    ("contrast", variants.contrasted),
+                    ("adaptive", variants.adaptive),
+                ]
 
             for variant_name, ocr_image in variant_images:
                 ratio = ocr_image.shape[1] / max(ocr_image.shape[0], 1)
@@ -161,6 +210,8 @@ class LicensePlateDetector:
                     break
 
                 should_try_split = (
+                    settings.OCR_TRY_SPLIT_FALLBACK
+                    and
                     (mode_is_motorbike or ratio < TWO_LINE_RATIO_THRESHOLD)
                     and (
                         not settings.OCR_FAST_MODE

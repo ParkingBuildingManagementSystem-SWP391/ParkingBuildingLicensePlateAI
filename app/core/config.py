@@ -18,6 +18,12 @@ class Settings:
     OCR_LANGUAGES: list = ["en"]
     OCR_GPU: bool = False  # Đổi thành True nếu hệ thống có GPU NVIDIA đã cài CUDA
     OCR_FAST_MODE: bool = True
+    OCR_DECODER: str = "greedy"
+    OCR_BEAM_WIDTH: int = 3
+    OCR_TRY_ALTERNATE_MODE: bool = False
+    OCR_TRY_SPLIT_FALLBACK: bool = False
+    MAX_DETECT_IMAGE_SIDE: int = 960
+    WARMUP_ON_STARTUP: bool = True
 
 settings = Settings()
 
