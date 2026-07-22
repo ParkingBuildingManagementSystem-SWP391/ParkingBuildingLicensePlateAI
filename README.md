@@ -309,12 +309,13 @@ Các thiết lập chính nằm trong `app/core/config.py`:
 
 ## 📸 Screenshots
 
-<!--
-Thêm ảnh dashboard vào docs/screenshots/dashboard.png, sau đó bỏ comment dòng dưới:
-![Parking License Plate AI Dashboard](docs/screenshots/dashboard.png)
--->
+<div align="center">
 
-> Screenshot của Web Dashboard sẽ được bổ sung tại `docs/screenshots/dashboard.png`.
+![Parking License Plate AI Dashboard](docs/screenshots/dashboard.png)
+
+*Web Dashboard nhận diện biển số xe bằng YOLOv8 và EasyOCR.*
+
+</div>
 
 ---
 
