@@ -1,10 +1,11 @@
 import unittest
+from unittest.mock import patch
 
 import cv2
 import numpy as np
 
 from app.recognition.plate_rules import is_valid_plate, normalize_plate_text
-from app.utils.plate_image import preprocess_plate_variants, TARGET_CROP_WIDTH
+from app.utils.plate_image import deskew_plate, preprocess_plate_variants, TARGET_CROP_WIDTH
 from app.utils.helpers import (
     correct_license_plate_vietnam,
     is_fast_accept_ocr_candidate,
@@ -15,6 +16,23 @@ from app.utils.helpers import (
 
 
 class RecognitionTests(unittest.TestCase):
+    def test_deskew_accepts_both_hough_line_shapes(self):
+        image = np.full((60, 180, 3), 220, dtype=np.uint8)
+        line_coordinates = np.array(
+            [[10, 20, 160, 20], [15, 40, 165, 40]],
+            dtype=np.int32,
+        )
+
+        for shape in ((2, 4), (2, 1, 4)):
+            with self.subTest(shape=shape):
+                with patch(
+                    "app.utils.plate_image.cv2.HoughLinesP",
+                    return_value=line_coordinates.reshape(shape),
+                ):
+                    result = deskew_plate(image)
+
+                self.assertEqual(result.shape, image.shape)
+
     def test_plate_preprocessing_returns_contrast_and_binary_variants(self):
         image = np.full((60, 180, 3), 220, dtype=np.uint8)
         cv2.putText(image, "59A12345", (5, 42), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (20, 20, 20), 2)

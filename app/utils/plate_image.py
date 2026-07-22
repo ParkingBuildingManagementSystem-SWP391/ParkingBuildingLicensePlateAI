@@ -30,8 +30,11 @@ def deskew_plate(crop_img: np.ndarray) -> np.ndarray:
     if lines is None:
         return crop_img.copy()
 
+    # OpenCV builds may return Hough lines as either (N, 1, 4) or (N, 4).
+    # Normalize both layouts before unpacking the endpoint coordinates.
+    normalized_lines = np.asarray(lines).reshape(-1, 4)
     angles = []
-    for x1, y1, x2, y2 in lines[:, 0]:
+    for x1, y1, x2, y2 in normalized_lines:
         angle = float(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
         if abs(angle) <= MAX_DESKEW_ANGLE:
             angles.append(angle)
