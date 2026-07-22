@@ -38,7 +38,7 @@ if __name__ == "__main__":
     print("=" * 80)
     print(" BẮT ĐẦU KHỞI CHẠY DỊCH VỤ AI NHẬN DIỆN BIỂN SỐ XE VIỆT NAM (FASTAPI)")
     print(" Địa chỉ Web UI Dashboard: http://127.0.0.1:8000")
-    print(" API Endpoint cho Backend .NET: [POST] http://127.0.0.1:8000/predict")
+    print(" API Endpoint cho Backend .NET: [POST] http://127.0.0.1:8000/predict-file-fast")
     print("=" * 80)
     
     # Chạy uvicorn server cục bộ

@@ -102,8 +102,3 @@ def preprocess_plate_variants(crop_img: np.ndarray) -> PlateImageVariants:
     adaptive_cleaned = cv2.morphologyEx(adaptive_closed, cv2.MORPH_OPEN, kernel, iterations=1)
     adaptive_morphed = cv2.bitwise_not(adaptive_cleaned)
     return PlateImageVariants(contrasted=contrasted, binary=morphed, adaptive=adaptive_morphed)
-
-
-def preprocess_plate(crop_img: np.ndarray) -> np.ndarray:
-    """Return the full Deskew -> ... -> Morphology pipeline output."""
-    return preprocess_plate_variants(crop_img).binary

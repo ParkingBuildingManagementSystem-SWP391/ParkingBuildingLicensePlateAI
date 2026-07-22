@@ -1,5 +1,6 @@
 import os
 import base64
+import time
 
 import cv2
 import easyocr
@@ -121,6 +122,7 @@ class LicensePlateDetector:
 
     def detect_and_recognize(self, image: np.ndarray, include_images: bool = True):
         """Detect the best plate and return text plus annotated/cropped images."""
+        started_at = time.perf_counter()
         if image is None or image.size == 0:
             raise ValueError("Input image is empty")
         if self.yolo_model is None:
@@ -129,9 +131,18 @@ class LicensePlateDetector:
         if self.ocr_reader is None:
             raise RuntimeError("EasyOCR is not available")
 
+        original_height, original_width = image.shape[:2]
         image = resize_for_detection(image)
+        detect_height, detect_width = image.shape[:2]
 
+        yolo_started_at = time.perf_counter()
         results = self.yolo_model.predict(image, verbose=False)
+        yolo_ms = (time.perf_counter() - yolo_started_at) * 1000
+        print(
+            f"[PERF] yolo_ms={yolo_ms:.0f} "
+            f"original={original_width}x{original_height} "
+            f"detect={detect_width}x{detect_height}"
+        )
         best_box = None
         best_confidence = 0.0
 
@@ -160,6 +171,8 @@ class LicensePlateDetector:
         candidates = []
         candidate_images = {}
         fast_accept_variant = None
+        ocr_total_ms = 0.0
+        ocr_call_count = 0
 
         for mode_is_motorbike in modes:
             mode_label = "motorbike" if mode_is_motorbike else "car"
@@ -186,7 +199,11 @@ class LicensePlateDetector:
             for variant_name, ocr_image in variant_images:
                 ratio = ocr_image.shape[1] / max(ocr_image.shape[0], 1)
 
+                ocr_started_at = time.perf_counter()
                 ocr_results = self._read_easyocr(ocr_image)
+                ocr_ms = (time.perf_counter() - ocr_started_at) * 1000
+                ocr_total_ms += ocr_ms
+                ocr_call_count += 1
                 candidate_key = f"{mode_label}:{variant_name}:full"
                 license_plate = preprocess_license_plate_text(
                     ocr_results,
@@ -219,7 +236,11 @@ class LicensePlateDetector:
                     )
                 )
                 if should_try_split:
+                    ocr_started_at = time.perf_counter()
                     ocr_results = self._read_two_line_easyocr(ocr_image)
+                    ocr_ms = (time.perf_counter() - ocr_started_at) * 1000
+                    ocr_total_ms += ocr_ms
+                    ocr_call_count += 2
                     candidate_key = f"{mode_label}:{variant_name}:split"
                     license_plate = preprocess_license_plate_text(
                         ocr_results,
@@ -255,6 +276,11 @@ class LicensePlateDetector:
         print(
             f"[EASYOCR] Selected: {selected_variant} | "
             f"plate: {license_plate} | confidence: {selected_confidence:.3f}"
+        )
+        total_ms = (time.perf_counter() - started_at) * 1000
+        print(
+            f"[PERF] detect_total_ms={total_ms:.0f} "
+            f"ocr_total_ms={ocr_total_ms:.0f} ocr_calls={ocr_call_count}"
         )
 
         crop_img, (x1, y1, x2, y2) = candidate_images.get(

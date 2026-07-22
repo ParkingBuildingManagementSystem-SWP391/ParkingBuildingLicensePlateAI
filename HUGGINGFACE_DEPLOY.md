@@ -36,18 +36,19 @@ https://YOUR_USERNAME-parking-license-ai.hf.space/docs
 Backend goi:
 
 ```http
-POST https://YOUR_USERNAME-parking-license-ai.hf.space/predict
-Content-Type: application/json
+POST https://YOUR_USERNAME-parking-license-ai.hf.space/predict-file-fast
+Content-Type: multipart/form-data
 ```
 
-```json
-{
-  "image_url": "https://res.cloudinary.com/.../vehicle.jpg"
-}
+Field file anh phai co ten `file`. Vi du:
+
+```bash
+curl -X POST "https://YOUR_USERNAME-parking-license-ai.hf.space/predict-file-fast" \
+  -F "file=@vehicle.jpg"
 ```
 
 ## Luu y
 
 - File `models/best.pt` phai duoc commit cung source.
 - Lan build dau va lan goi dau co the cham vi PyTorch, YOLO va EasyOCR can duoc tai vao bo nho.
-- Goi mien phi co the sleep khi khong su dung; hay goi `/health` va `/predict` truoc buoi demo.
+- Goi mien phi co the sleep khi khong su dung; hay goi `/health` va `/predict-file-fast` truoc buoi demo.

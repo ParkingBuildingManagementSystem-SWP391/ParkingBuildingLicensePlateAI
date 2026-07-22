@@ -111,22 +111,6 @@
             font-size: 0.95rem;
         }
 
-        input[type="text"] {
-            width: 100%;
-            padding: 0.85rem 1rem;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background-color: rgba(15, 23, 42, 0.6);
-            color: var(--text-primary);
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-
-        input[type="text"]:focus {
-            border-color: var(--accent-color);
-        }
-
         .file-upload-wrapper {
             position: relative;
             width: 100%;
@@ -186,29 +170,6 @@
 
         .btn:active {
             transform: scale(0.98);
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            text-align: center;
-            margin: 1.5rem 0;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-
-        .divider::before, .divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .divider:not(:empty)::before {
-            margin-right: .5em;
-        }
-
-        .divider:not(:empty)::after {
-            margin-left: .5em;
         }
 
         .result-container {
@@ -342,13 +303,6 @@
             
             <form id="upload-form" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="image-url">Nhập URL hình ảnh trực tuyến:</label>
-                    <input type="text" id="image-url" name="image_url" placeholder="https://example.com/car.jpg">
-                </div>
-                
-                <div class="divider">HOẶC UPLOAD FILE ẢNH</div>
-
-                <div class="form-group">
                     <div class="file-upload-wrapper">
                         <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
@@ -410,7 +364,6 @@
         const form = document.getElementById('upload-form');
         const fileInput = document.getElementById('image-file');
         const fileNameDisplay = document.getElementById('file-name-display');
-        const urlInput = document.getElementById('image-url');
         const submitBtn = document.getElementById('submit-btn');
         
         const loader = document.getElementById('loader');
@@ -426,15 +379,6 @@
             if (fileInput.files.length > 0) {
                 fileNameDisplay.textContent = fileInput.files[0].name;
                 fileNameDisplay.style.color = '#38bdf8';
-                urlInput.value = '';
-            }
-        });
-
-        urlInput.addEventListener('input', () => {
-            if (urlInput.value.trim() !== '') {
-                fileInput.value = '';
-                fileNameDisplay.textContent = 'Kéo thả hoặc Click để chọn ảnh';
-                fileNameDisplay.style.color = 'var(--text-secondary)';
             }
         });
 
@@ -442,10 +386,9 @@
             e.preventDefault();
             
             const fileSelected = fileInput.files.length > 0;
-            const urlProvided = urlInput.value.trim() !== '';
 
-            if (!fileSelected && !urlProvided) {
-                alert('Vui lòng chọn file ảnh hoặc cung cấp URL ảnh!');
+            if (!fileSelected) {
+                alert('Vui lòng chọn file ảnh!');
                 return;
             }
 
@@ -456,25 +399,13 @@
             submitBtn.disabled = true;
 
             try {
-                let response;
-                
-                if (urlProvided) {
-                    response = await fetch('/predict-web', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            image_url: urlInput.value.trim()
-                        })
-                    });
-                } else {
-                    const formData = new FormData();
-                    formData.append('file', fileInput.files[0]);
-                    
-                    response = await fetch('/predict-file', {
-                        method: 'POST',
-                        body: formData
-                    });
-                }
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+
+                const response = await fetch('/predict-file', {
+                    method: 'POST',
+                    body: formData
+                });
 
                 const data = await response.json();
                 
